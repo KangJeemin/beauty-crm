@@ -1,0 +1,36 @@
+/* 시니어 친화 기본값: 큰 글씨, 큰 터치 영역 */
+:root {
+  --bg: #ffffff;
+  --ink: #111111;
+  --muted: #666666;
+  --line: #e5e5e5;
+  --ok: #0a7d32;
+  --bad: #c62828;
+  --accent: #111111;
+  font-size: 18px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+.shell { max-width: 560px; margin: 0 auto; padding: 32px 20px; }
+h1 { font-size: 1.8rem; margin: 0 0 4px; }
+.muted { color: var(--muted); margin: 0 0 24px; }
+.checks { list-style: none; padding: 0; margin: 0 0 32px; border-top: 1px solid var(--line); }
+.checks li { display: flex; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.ok { color: var(--ok); }
+.bad { color: var(--bad); }
+.record {
+  width: 100%;
+  min-height: 72px;
+  font-size: 1.2rem;
+  border-radius: 16px;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+}
+.record:disabled { opacity: 0.35; }

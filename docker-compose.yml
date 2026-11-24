@@ -1,0 +1,83 @@
+# 로컬 개발: `docker compose up -d mariadb seaweedfs` 후 npm run dev
+# 회사 서버:   `docker compose --profile app up -d --build`
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: beauty-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    ports:
+      - "${DB_PORT:-3307}:3306"
+    volumes:
+      - ./docker/data/mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # S3 호환 파일 저장소 (사진·음성). MinIO 공식 이미지 삭제(2026-09)로 SeaweedFS 사용
+  # 서버 이전 시 NCP Object Storage 등으로 바꾸면 .env 의 STORAGE_* 만 변경
+  seaweedfs:
+    image: chrislusf/seaweedfs:${SEAWEEDFS_VERSION:-4.55}
+    container_name: beauty-seaweedfs
+    restart: unless-stopped
+    environment:
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+    # 접근 키를 .env 에서 받아 S3 인증 설정 파일을 만든 뒤 실행 (키를 파일로 커밋하지 않기 위함)
+    entrypoint: ["/bin/sh", "/etc/seaweedfs/start.sh"]
+    ports:
+      - "${STORAGE_PORT:-8333}:8333"   # S3 API
+      # - "9333:9333"                  # 관리용 Master UI (필요할 때만 열기)
+    volumes:
+      - ./docker/seaweedfs/start.sh:/etc/seaweedfs/start.sh:ro
+      - ./docker/data/seaweedfs:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: beauty-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      STORAGE_ENDPOINT: http://seaweedfs:8333
+    ports:
+      - "${API_PORT:-4000}:4000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    container_name: beauty-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api

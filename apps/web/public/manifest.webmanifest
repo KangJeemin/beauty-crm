@@ -1,0 +1,10 @@
+{
+  "name": "미용 고객 관리",
+  "short_name": "고객관리",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "lang": "ko",
+  "icons": []
+}
