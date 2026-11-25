@@ -138,6 +138,58 @@ npm run test:e2e -w @beauty-crm/api
 실제 MariaDB 에 붙어 20개 시나리오를 확인한다 (매장 격리, 권한, 토큰 회전·재사용 감지, 소프트 삭제 등).
 테스트 데이터는 실행마다 고유 아이디로 개발 DB 에 쌓인다.
 
+## 2단계: 고객 · 태그 · 시술 메뉴
+
+### 고객 전화번호 보호
+
+| 컬럼 | 내용 | 용도 |
+|---|---|---|
+| `phoneEnc` | AES-256-GCM 암호문 (`PHONE_ENC_KEY`) | 상세 화면에서만 복호화해 표시 |
+| `phoneHash` | HMAC-SHA256 (`PHONE_HMAC_KEY`) | 같은 매장 중복 확인, 전체 번호 정확 검색 |
+| `phoneLast4` | 뒷자리 4자리 평문 | 빠른 검색 |
+
+목록 API 에는 전체 번호가 나가지 않는다 (`***-****-1234`).
+**`PHONE_ENC_KEY` / `PHONE_HMAC_KEY` 는 운영 데이터가 쌓인 뒤 바꾸거나 잃어버리면 기존 번호를 읽을 수 없다.** DB 백업과 별도로 보관할 것.
+
+### 고객 검색 (`GET /api/customers?q=`)
+
+| 입력 | 동작 |
+|---|---|
+| 숫자 4자리 (`5678`) | 뒷자리 일치 |
+| 숫자 9~11자리 (`010-1234-5678`) | 전체 번호 정확 일치 |
+| 숫자 1~3자리 | 뒷자리에 포함 |
+| 그 외 (`미영`) | 이름에 포함 |
+
+그 밖에 `tagId`(태그로 거르기), `sort=recent|name|created`, `page`, `size`.
+
+### API 목록 (2단계)
+
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| GET | `/api/customers` | 로그인 | 목록·검색 |
+| GET | `/api/customers/check-phone?phone=` | 로그인 | 등록 전 중복 확인 |
+| GET / POST / PATCH / DELETE | `/api/customers[/:id]` | 로그인 | 상세·등록·수정·소프트 삭제 |
+| GET / POST / PATCH / DELETE | `/api/tags[/:id]` | 로그인 | 태그 (삭제 시 고객 연결도 해제) |
+| GET | `/api/menus` | 로그인 | 분류별 메뉴·가격표 |
+| POST | `/api/menus/seed-defaults` | 원장 | 메뉴가 없을 때 기본 메뉴 넣기 |
+| POST / PATCH / DELETE | `/api/menus/categories[/:id]` | 원장 | 분류 |
+| PUT | `/api/menus/categories/order`, `/api/menus/categories/:id/order` | 원장 | 순서 변경 (`{ ids: [...] }`) |
+| POST / PATCH / DELETE | `/api/menus/items[/:id]` | 원장 | 메뉴 (가격·소요시간·별칭·판매 중지) |
+
+- 매장 가입 시 기본 메뉴(커트·펌·염색·클리닉·기타, 예시 가격)가 자동으로 들어간다.
+- 메뉴 `aliases`(다르게 부르는 이름, 예: `뿌염`)는 3단계 음성 기록에서 메뉴를 찾는 데 쓴다.
+- 다른 매장의 분류·태그 id 를 body 에 넣으면 404 (메뉴 이동, 고객 태그 지정 포함).
+
+### 화면
+
+| 경로 | 내용 |
+|---|---|
+| `/customers` | 검색(뒷자리·이름) + 목록. 태블릿·PC(1000px~)는 왼쪽 목록 + 오른쪽 상세 2단 |
+| `/customers/new`, `/customers/:id/edit` | 등록·수정 (번호 자동 하이픈, 중복 번호 즉시 안내, 태그 바로 만들기) |
+| `/customers/:id` | 상세 (전화 걸기, 메모 강조, 방문·결제 통계) |
+| `/settings/menu` | 시술 메뉴·가격표 (원장 수정, 디자이너 보기) |
+| `/settings/tags` | 태그 이름·색상·삭제 |
+
 ## 회사 서버 배포
 
 ```bash
@@ -151,6 +203,19 @@ docker compose --profile app up -d --build
 - `SHOP_AUTO_APPROVE=false`
 - `CORS_ORIGIN`, `NEXT_PUBLIC_API_BASE_URL` → 실제 HTTPS 도메인
 - DB · 저장소 비밀번호 변경
+
+- `PHONE_ENC_KEY`, `PHONE_HMAC_KEY` → `openssl rand -hex 32` 로 각각 새로 생성 (위 주의사항 참고)
+
+도메인(`https://beauty.emtpro.kr`) 기준 `.env`:
+
+```
+NODE_ENV=production
+CORS_ORIGIN=https://beauty.emtpro.kr
+NEXT_PUBLIC_API_BASE_URL=https://beauty.emtpro.kr/api
+```
+
+리버스 프록시는 같은 도메인에서 `/api/*` → api(4000), 나머지 → web(3000) 으로 보낸다.
+`NEXT_PUBLIC_API_BASE_URL` 은 web 빌드 때 화면 코드에 들어가므로 바꾼 뒤 `--build` 로 다시 빌드한다.
 
 - API 컨테이너는 시작할 때 밀린 마이그레이션을 자동 적용한 뒤 실행된다.
 - HTTPS(브라우저 마이크 사용에 필수)는 앞단 Nginx/Caddy 리버스 프록시에서 처리한다.

@@ -6,6 +6,7 @@ import { ShopAuth } from '../../common/auth/auth.types';
 import { Errors } from '../../common/errors/app.exception';
 import { DUMMY_HASH, hashPassword, verifyPassword } from '../../common/utils/crypto.util';
 import { ShopInvite } from '../invite/shop-invite.entity';
+import { MenuService } from '../menu/menu.service';
 import { Shop } from '../shop/entities/shop.entity';
 import { ShopRepository } from '../shop/shop.repository';
 import { ShopUser } from '../staff/entities/shop-user.entity';
@@ -31,6 +32,7 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly users: ShopUserRepository,
     private readonly shops: ShopRepository,
+    private readonly menus: MenuService,
     config: ConfigService,
   ) {
     this.autoApprove = config.get('SHOP_AUTO_APPROVE', 'false') === 'true';
@@ -68,6 +70,8 @@ export class AuthService {
           role: UserRole.OWNER,
         }),
       );
+      // 기본 시술 메뉴(예시 가격) — 원장님이 설정에서 매장 가격으로 수정
+      await this.menus.seedDefaults(em, shop.id);
       return { shop, user };
     });
     this.logger.log(`매장 가입: #${shop.id} ${shop.name} (${status})`);
