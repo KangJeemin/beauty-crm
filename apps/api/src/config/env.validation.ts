@@ -13,9 +13,13 @@ export const envValidationSchema = Joi.object({
   DB_NAME: Joi.string().required(),
   DB_LOGGING: Joi.boolean().default(false),
 
-  // 1단계(인증)부터 필수로 바꿀 항목들
-  JWT_ACCESS_SECRET: Joi.string().optional(),
-  JWT_REFRESH_SECRET: Joi.string().optional(),
+  JWT_ACCESS_SECRET: Joi.string().min(32).required().messages({
+    'string.min': 'JWT_ACCESS_SECRET 는 32자 이상이어야 합니다 (openssl rand -hex 32).',
+  }),
+  JWT_ACCESS_EXPIRES: Joi.string().pattern(/^\d+[smhd]$/).default('30m'),
+  JWT_REFRESH_EXPIRES: Joi.string().pattern(/^\d+[smhd]$/).default('30d'),
+  COOKIE_SECURE: Joi.string().valid('true', 'false').optional(),
+  SHOP_AUTO_APPROVE: Joi.string().valid('true', 'false').default('false'),
   PHONE_ENC_KEY: Joi.string().allow('').optional(),
   PHONE_HMAC_KEY: Joi.string().allow('').optional(),
 

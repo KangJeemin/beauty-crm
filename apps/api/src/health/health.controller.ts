@@ -1,8 +1,10 @@
 import { HealthStatus } from '@beauty-crm/shared';
 import { Controller, Get, HttpCode } from '@nestjs/common';
+import { Public } from '../common/auth/decorators';
 import { DataSource } from 'typeorm';
 import { StorageService } from '../common/storage/storage.service';
 
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
