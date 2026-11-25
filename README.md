@@ -135,7 +135,7 @@ npm run db:up && npm run db:migrate
 npm run test:e2e -w @beauty-crm/api
 ```
 
-실제 MariaDB 에 붙어 20개 시나리오를 확인한다 (매장 격리, 권한, 토큰 회전·재사용 감지, 소프트 삭제 등).
+실제 MariaDB 에 붙어 시나리오를 확인한다 (3단계 기준 52개) (매장 격리, 권한, 토큰 회전·재사용 감지, 소프트 삭제 등).
 테스트 데이터는 실행마다 고유 아이디로 개발 DB 에 쌓인다.
 
 ## 2단계: 고객 · 태그 · 시술 메뉴
@@ -190,6 +190,91 @@ npm run test:e2e -w @beauty-crm/api
 | `/settings/menu` | 시술 메뉴·가격표 (원장 수정, 디자이너 보기) |
 | `/settings/tags` | 태그 이름·색상·삭제 |
 
+## 3단계: 음성 기록
+
+### 흐름
+
+```
+[녹음] ──업로드──▶ voice_record (PENDING) ──백그라운드──▶ WAV 변환(ffmpeg) ─▶ STT ─▶ LLM 정리 ─▶ 검증
+                                                                                      │
+[검토 화면] ◀──────────── 1.5초마다 상태 조회 ◀───────────────────────────────────────┘
+     │ 고객 확인 · 틀린 부분 수정
+     ▼
+POST /api/treatments ─▶ treatment + treatment_item + treatment_recipe, 고객 방문 횟수·최근 방문일 갱신
+```
+
+- 글로 입력(`POST /api/voice-records/text`)은 STT 를 건너뛰고 바로 정리한다.
+- AI 결과는 그대로 저장하지 않는다. 검토 화면에서 원장님이 확인하고 저장해야 시술 기록이 된다.
+- 고객을 정하지 않고 녹음해도 AI 가 들은 이름·뒷자리로 후보를 찾아 보여준다 (`candidates`).
+- 실패하면 단계별로 다시 시도(`/retry`)하거나 직접 입력할 수 있다. 받아 적은 글은 남는다.
+- 처리 큐는 서버 안에서 동시 2건. 서버가 재시작되면 끝나지 않은 작업을 다시 넣는다. 사용자가 늘면 BullMQ 로 교체.
+
+### 엔진 교체 구조
+
+| 구분 | 인터페이스 | 구현 | `.env` |
+|---|---|---|---|
+| STT | `SttProvider` | `ClovaSttProvider` (CLOVA Speech 장문 인식, 키워드 부스팅), `MockSttProvider` | `STT_PROVIDER=CLOVA\|MOCK` |
+| LLM | `LlmProvider` | `HyperClovaLlmProvider` (HCX-007 Structured Outputs), `MockLlmProvider` | `LLM_PROVIDER=HYPERCLOVA\|MOCK` |
+
+새 엔진은 인터페이스 구현 클래스를 만들고 `modules/ai/ai.module.ts` 팩토리에 한 줄 추가하면 된다.
+`voice_record.sttProvider / aiProvider / aiModel / promptVersion` 에 어떤 엔진·프롬프트로 처리했는지 남는다.
+
+- **STT 요청**: `POST {Invoke URL}/recognizer/upload` multipart(`media`=16kHz 모노 WAV, `params`=`{language:"ko-KR", completion:"sync", boostings}`), 헤더 `X-CLOVASPEECH-API-KEY`
+  - 부스팅 단어: 매장 메뉴명·별칭 + 미용 용어 (한글·영어만, 최대 1,000개)
+- **LLM 요청**: `POST {base}/v3/chat-completions/HCX-007`, `responseFormat: { type: "json", schema }`, `thinking: { effort: "none" }`
+  - 시스템 프롬프트에 매장 메뉴(이름·별칭·가격)를 넣어 "뿌염" → "뿌리염색" 으로 매칭
+  - 스키마는 `modules/ai/prompt.ts`. "없음" 은 `""`/`0` 으로 받아 서버에서 `null` 로 바꾸고, 길이·범위를 DB 컬럼에 맞게 다시 검증 (`draft-normalizer.ts`)
+- 사용량·추정 비용은 `ai_usage_log` 에 매장별로 기록 (단가는 `.env`)
+
+### 실제 키로 바꾸기 (회사 서버)
+
+```
+STT_PROVIDER=CLOVA
+CLOVA_SPEECH_INVOKE_URL=https://clovaspeech-gw.ncloud.com/external/v1/....
+CLOVA_SPEECH_SECRET_KEY=...
+LLM_PROVIDER=HYPERCLOVA
+CLOVA_STUDIO_API_KEY=...
+```
+
+값이 비어 있으면 API 가 시작하지 않고 어떤 값이 필요한지 알려준다. 바꾼 뒤 `docker compose --profile app up -d --build`.
+
+### 원본 녹음 보관
+
+`VOICE_FILE_RETENTION_DAYS`(기본 30일)가 지나면 저장소의 음성 파일만 삭제한다 (6시간마다 확인).
+받아 적은 글·시술 기록은 남는다. 그 전에는 검토 화면에서 "녹음 다시 듣기" 가능.
+
+### API 목록 (3단계)
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| POST | `/api/voice-records` | 녹음 업로드 (multipart `audio`, `customerId` 선택, 최대 20MB) |
+| POST | `/api/voice-records/text` | 글로 입력 `{ text, customerId? }` |
+| GET | `/api/voice-records/:id` | 처리 상태 · 받아 적은 글 · AI 결과 · 고객 후보 |
+| GET | `/api/voice-records/pending` | 검토 대기 (저장 안 한 최근 7일) |
+| POST | `/api/voice-records/:id/retry` | 실패한 단계 다시 시도 |
+| GET | `/api/voice-records/:id/audio` | 원본 녹음 듣기 |
+| DELETE | `/api/voice-records/:id` | 기록 버리기 |
+| POST / PUT / DELETE | `/api/treatments[/:id]` | 시술 기록 저장 · 수정(항목 통째 교체) · 삭제 |
+| GET | `/api/treatments/:id`, `/api/treatments/recent` | 상세 · 최근 기록 |
+| GET | `/api/customers/:id/treatments` | 고객 시술 이력 (레시피 포함) |
+
+저장할 때 body 의 고객·담당 디자이너·메뉴·녹음·원본 기록 id 가 모두 내 매장 것인지 확인한다 (아니면 404).
+
+### 화면
+
+| 경로 | 내용 |
+|---|---|
+| `/records` | 큰 녹음 버튼(최대 3분, 소리 크기 표시) · 글로 기록 · 검토 대기 목록 |
+| `/records/:id` | 처리 단계 표시 → 검토·수정 (고객 후보, 메뉴 선택, 레시피, 총액 차이 안내, 녹음 다시 듣기) |
+| `/records/new?copyFrom=` | "지난번이랑 똑같이" (마지막 시술 복사) / `?customerId=` 직접 입력 |
+| `/treatments/:id/edit` | 시술 기록 수정 · 삭제 |
+| `/customers/:id` | 시술 이력 타임라인 (레시피 한 줄 요약, 메모) |
+
+### 테스트
+
+`naver-providers.e2e-spec.ts` 는 가짜 NAVER 서버를 띄워 CLOVA Speech·HCX-007 요청 형식(경로·헤더·multipart·responseFormat)과
+실패·재시도를 검증한다. 실제 키로 호출하는 확인은 회사 서버에서 한다.
+
 ## 회사 서버 배포
 
 ```bash
@@ -205,6 +290,7 @@ docker compose --profile app up -d --build
 - DB · 저장소 비밀번호 변경
 
 - `PHONE_ENC_KEY`, `PHONE_HMAC_KEY` → `openssl rand -hex 32` 로 각각 새로 생성 (위 주의사항 참고)
+- `STT_PROVIDER=CLOVA`, `LLM_PROVIDER=HYPERCLOVA` 와 NAVER 키 (3단계 참고)
 
 도메인(`https://beauty.emtpro.kr`) 기준 `.env`:
 

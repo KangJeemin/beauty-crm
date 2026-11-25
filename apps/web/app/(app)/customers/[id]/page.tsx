@@ -3,18 +3,19 @@
 import type { CustomerDetail } from '@beauty-crm/shared';
 import { formatPhone, formatWon } from '@beauty-crm/shared';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCustomersReload } from '../../../../components/customers/context';
 import { TagChip } from '../../../../components/customers/TagChip';
-import { IconMic } from '../../../../components/icons';
-import { Alert, Button, Empty } from '../../../../components/ui';
+import { TreatmentTimeline } from '../../../../components/records/TreatmentTimeline';
+import { Alert, Button } from '../../../../components/ui';
 import { api } from '../../../../lib/api';
 import { fmtDate, relDay } from '../../../../lib/format';
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const saved = useSearchParams().get('saved');
   const { version, reload } = useCustomersReload();
   const [c, setC] = useState<CustomerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,15 +112,8 @@ export default function CustomerDetailPage() {
         </dl>
       </div>
 
-      <div className="card">
-        <div className="card-head">
-          <h2>시술 기록</h2>
-          <Link href={`/records?customerId=${c.id}`} className="btn btn-primary btn-sm">
-            <IconMic /> 기록하기
-          </Link>
-        </div>
-        <Empty title="아직 시술 기록이 없어요" desc="음성으로 기록하는 기능은 3단계에서 연결됩니다." />
-      </div>
+      {saved && <Alert kind="ok">시술 기록을 저장했어요.</Alert>}
+      <TreatmentTimeline customerId={c.id} highlightId={saved ? Number(saved) : undefined} />
 
       <div className="card small muted">
         <p>등록일 {fmtDate(c.createdAt)}</p>

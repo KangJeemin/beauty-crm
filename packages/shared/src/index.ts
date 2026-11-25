@@ -266,3 +266,140 @@ export function formatPhone(digits: string | null | undefined): string {
 
 /** 금액 표시 (35000 → "35,000원") */
 export const formatWon = (n: number) => `${n.toLocaleString('ko-KR')}원`;
+
+// ── 3단계: 음성 기록 · 시술 기록 ────────────────────────
+
+export type JobStatus = 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED' | 'SKIPPED';
+
+/** 시술 레시피 1줄 (약제·컬러·비율·방치시간) */
+export interface RecipeInput {
+  area?: string | null;
+  productName?: string | null;
+  colorCode?: string | null;
+  mixRatio?: string | null;
+  developerPct?: number | null;
+  amountGram?: number | null;
+  processingMin?: number | null;
+  rodSize?: string | null;
+  heatTemp?: number | null;
+  memo?: string | null;
+}
+
+export interface TreatmentItemInput {
+  serviceMenuId?: number | null;
+  menuName: string;
+  price: number;
+  recipes: RecipeInput[];
+}
+
+/** AI 가 정리한 결과 (검토 화면 초기값) */
+export interface AiDraft {
+  customerName: string | null;
+  phoneLast4: string | null;
+  items: TreatmentItemInput[];
+  totalPrice: number | null;
+  note: string | null;
+  summary: string | null;
+}
+
+export interface CustomerCandidate {
+  id: number;
+  name: string;
+  phoneMasked: string | null;
+  lastVisitAt: string | null;
+}
+
+export interface VoiceRecordStatus {
+  id: number;
+  inputType: 'VOICE' | 'TEXT';
+  customerId: number | null;
+  sttStatus: JobStatus;
+  aiStatus: JobStatus;
+  transcript: string | null;
+  draft: AiDraft | null;
+  error: string | null;
+  treatmentId: number | null;
+  /** AI 가 알아들은 고객 이름·뒷자리로 찾은 후보 */
+  candidates: CustomerCandidate[];
+  durationSec: number | null;
+  createdAt: string;
+}
+
+export interface PendingVoiceItem {
+  id: number;
+  inputType: 'VOICE' | 'TEXT';
+  customerName: string | null;
+  summary: string | null;
+  aiStatus: JobStatus;
+  sttStatus: JobStatus;
+  createdAt: string;
+}
+
+export interface TreatmentSaveInput {
+  customerId: number;
+  designerId?: number;
+  treatedAt?: string;
+  voiceRecordId?: number | null;
+  copiedFromId?: number | null;
+  items: TreatmentItemInput[];
+  note?: string | null;
+  summary?: string | null;
+}
+
+export interface TreatmentRecipe extends RecipeInput {
+  id: number;
+}
+
+export interface TreatmentItem {
+  id: number;
+  serviceMenuId: number | null;
+  menuName: string;
+  price: number;
+  recipes: TreatmentRecipe[];
+}
+
+export interface TreatmentDetail {
+  id: number;
+  customerId: number;
+  customerName: string;
+  designerId: number;
+  designerName: string;
+  treatedAt: string;
+  inputType: 'VOICE' | 'TEXT' | 'MANUAL';
+  summary: string | null;
+  note: string | null;
+  totalAmount: number;
+  copiedFromId: number | null;
+  transcript: string | null;
+  items: TreatmentItem[];
+  createdAt: string;
+}
+
+export interface TreatmentListItem {
+  id: number;
+  customerId: number;
+  customerName: string;
+  designerName: string;
+  treatedAt: string;
+  summary: string | null;
+  totalAmount: number;
+  itemNames: string[];
+}
+
+/** 레시피 한 줄 요약 (예: "뿌리 · 7N · 6% · 1:1 · 30분") */
+export function recipeLine(r: RecipeInput): string {
+  return [
+    r.area,
+    r.productName,
+    r.colorCode,
+    r.developerPct != null ? `${r.developerPct}%` : null,
+    r.mixRatio,
+    r.amountGram != null ? `${r.amountGram}g` : null,
+    r.processingMin != null ? `${r.processingMin}분` : null,
+    r.rodSize ? `로드 ${r.rodSize}` : null,
+    r.heatTemp != null ? `${r.heatTemp}℃` : null,
+    r.memo,
+  ]
+    .filter((v) => v !== null && v !== undefined && v !== '')
+    .join(' · ');
+}
