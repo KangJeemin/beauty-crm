@@ -1,14 +1,10 @@
 import { Empty } from '../../../components/ui';
 
-export default function Page() {
+/** 태블릿·PC 의 오른쪽 칸 (휴대폰에서는 보이지 않음) */
+export default function CustomersIndex() {
   return (
-    <div className="page">
-      <header className="page-head">
-        <h1>고객</h1>
-      </header>
-      <section className="card">
-        <Empty title="준비 중입니다" desc="고객 등록과 전화번호 뒷자리 검색은 2단계에서 만들어집니다." />
-      </section>
+    <div className="card split-placeholder">
+      <Empty title="고객을 선택해 주세요" desc="왼쪽에서 고객을 고르면 정보와 시술 기록이 여기에 보입니다." />
     </div>
   );
 }

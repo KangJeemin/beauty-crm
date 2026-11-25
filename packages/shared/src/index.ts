@@ -175,3 +175,94 @@ export const AuthRules = {
   loginIdMessage: '아이디는 영문·숫자·@ . _ - 를 사용해 4~50자로 입력해 주세요.',
   passwordMessage: '비밀번호는 영문과 숫자를 섞어 8자 이상으로 입력해 주세요.',
 } as const;
+
+// ── 2단계: 고객 · 태그 · 시술 메뉴 ──────────────────────
+
+export type Gender = 'F' | 'M';
+
+export interface TagItem {
+  id: number;
+  name: string;
+  color: string | null;
+  customerCount?: number;
+}
+
+/** 태그 색상 (화면에서 고르는 8가지) */
+export const TAG_COLORS = ['#b3261e', '#c75b12', '#a17f00', '#2e7d32', '#00796b', '#1565c0', '#6a1b9a', '#5d4037'] as const;
+
+export interface CustomerListItem {
+  id: number;
+  name: string;
+  /** 010-****-5678 */
+  phoneMasked: string | null;
+  phoneLast4: string | null;
+  gender: Gender | null;
+  lastVisitAt: string | null;
+  visitCount: number;
+  tags: TagItem[];
+}
+
+export interface CustomerDetail extends CustomerListItem {
+  /** 010-1234-5678 (복호화) */
+  phone: string | null;
+  birthYear: number | null;
+  memo: string | null;
+  firstVisitAt: string | null;
+  totalPaidAmount: number;
+  consentAt: string | null;
+  createdAt: string;
+}
+
+export interface Paged<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export type CustomerSort = 'recent' | 'name' | 'created';
+
+export interface CustomerInput {
+  name: string;
+  phone?: string | null;
+  gender?: Gender | null;
+  birthYear?: number | null;
+  memo?: string | null;
+  consent?: boolean;
+  tagIds?: number[];
+}
+
+export interface ServiceMenuItem {
+  id: number;
+  categoryId: number;
+  name: string;
+  basePrice: number;
+  durationMin: number | null;
+  /** 음성 인식용 별칭, 쉼표 구분 (예: "뿌염,뿌리 염색") */
+  aliases: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface ServiceCategoryItem {
+  id: number;
+  name: string;
+  sortOrder: number;
+  menus: ServiceMenuItem[];
+}
+
+/** 전화번호 표시 형식 (숫자만 받아 010-1234-5678) */
+export function formatPhone(digits: string | null | undefined): string {
+  if (!digits) return '';
+  const d = digits.replace(/\D/g, '');
+  if (d.startsWith('02')) {
+    if (d.length === 9) return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
+    if (d.length === 10) return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6)}`;
+  }
+  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  return d;
+}
+
+/** 금액 표시 (35000 → "35,000원") */
+export const formatWon = (n: number) => `${n.toLocaleString('ko-KR')}원`;

@@ -20,8 +20,14 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_EXPIRES: Joi.string().pattern(/^\d+[smhd]$/).default('30d'),
   COOKIE_SECURE: Joi.string().valid('true', 'false').optional(),
   SHOP_AUTO_APPROVE: Joi.string().valid('true', 'false').default('false'),
-  PHONE_ENC_KEY: Joi.string().allow('').optional(),
-  PHONE_HMAC_KEY: Joi.string().allow('').optional(),
+  PHONE_ENC_KEY: Joi.string().hex().length(64).required().messages({
+    'any.required': 'PHONE_ENC_KEY 가 필요합니다 (openssl rand -hex 32).',
+    'string.length': 'PHONE_ENC_KEY 는 64자리 hex 여야 합니다 (openssl rand -hex 32).',
+  }),
+  PHONE_HMAC_KEY: Joi.string().hex().length(64).required().messages({
+    'any.required': 'PHONE_HMAC_KEY 가 필요합니다 (openssl rand -hex 32).',
+    'string.length': 'PHONE_HMAC_KEY 는 64자리 hex 여야 합니다 (openssl rand -hex 32).',
+  }),
 
   STORAGE_ENDPOINT: Joi.string().uri().required(),
   STORAGE_REGION: Joi.string().default('ap-northeast-2'),

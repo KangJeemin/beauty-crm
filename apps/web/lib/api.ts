@@ -72,7 +72,7 @@ export function refreshSession(): Promise<LoginResult | null> {
 }
 
 interface Options {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   /** false 면 토큰을 붙이지 않음 (로그인·가입) */
   auth?: boolean;

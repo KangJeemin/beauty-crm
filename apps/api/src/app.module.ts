@@ -7,15 +7,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { resolve } from 'path';
 import { AuthGuard } from './common/auth/auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { CryptoModule } from './common/crypto/crypto.module';
 import { StorageModule } from './common/storage/storage.module';
 import { typeOrmConfigFactory } from './config/database.config';
 import { envValidationSchema } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CustomerModule } from './modules/customer/customer.module';
 import { InviteModule } from './modules/invite/invite.module';
+import { MenuModule } from './modules/menu/menu.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StaffModule } from './modules/staff/staff.module';
+import { TagModule } from './modules/tag/tag.module';
 
 @Module({
   imports: [
@@ -37,12 +41,16 @@ import { StaffModule } from './modules/staff/staff.module';
       skipIf: () => process.env.THROTTLE_DISABLED === 'true', // e2e 테스트용
     }),
     StorageModule,
+    CryptoModule,
     HealthModule,
     ShopModule,
     StaffModule,
     AuthModule,
     InviteModule,
     AdminModule,
+    MenuModule,
+    TagModule,
+    CustomerModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

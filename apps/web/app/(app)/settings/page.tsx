@@ -1,6 +1,7 @@
 'use client';
 
 import { AuthRules, type InviteItem, type ShopInfo, type StaffItem } from '@beauty-crm/shared';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Field, PasswordField, Section } from '../../../components/ui';
@@ -337,6 +338,16 @@ export default function SettingsPage() {
         <h1>설정</h1>
       </header>
       <div className="stack">
+        <nav className="link-cards" aria-label="매장 설정">
+          <Link href="/settings/menu" className="link-card">
+            <b>시술 메뉴 · 가격표</b>
+            <span className="muted">{isOwner ? '메뉴와 가격 바꾸기' : '메뉴와 가격 보기'}</span>
+          </Link>
+          <Link href="/settings/tags" className="link-card">
+            <b>고객 태그</b>
+            <span className="muted">두피 민감, 탈색 이력 같은 표시</span>
+          </Link>
+        </nav>
         <MySettings />
         <StaffSettings isOwner={isOwner} myId={user.id} />
         <ShopSettings isOwner={isOwner} />
