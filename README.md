@@ -45,7 +45,7 @@ beauty-crm/
 cp .env.example .env               # 비밀번호 등 수정
 
 # 2. DB · 파일 저장소 실행
-docker compose up -d mariadb seaweedfs
+npm run db:up                      # MariaDB(3307) · SeaweedFS 실행, healthy 까지 대기
 
 # 3. 의존성 설치 · 스키마 생성
 npm install
@@ -58,12 +58,99 @@ npm run dev                        # web: http://localhost:3000  api: http://loc
 
 `http://localhost:3000` 에서 웹 / API / DB / 파일 저장소가 모두 "정상" 이면 0단계 완료.
 
+## 1단계: 인증 · 매장 · 직원
+
+### 로그인 구조
+
+| 항목 | 방식 |
+|---|---|
+| Access Token | JWT, 30분. 화면 메모리에만 보관 (localStorage 저장 안 함) |
+| Refresh Token | 불투명 랜덤 문자열, 30일. `httpOnly` 쿠키(`bc_rt`, path `/api/auth`)로만 전달, DB 에는 SHA-256 해시만 저장 |
+| 갱신 | 쓸 때마다 새 토큰으로 교체(회전). 이미 쓴 토큰이 다시 오면 탈취로 보고 해당 사용자 전체 로그아웃 (동시 요청 대비 10초 유예) |
+| 비밀번호 | bcrypt. 변경·초기화 시 다른 기기 로그인 모두 해제 |
+| 로그인 제한 | 로그인·가입 API 는 IP당 1분 10회 |
+
+### 매장 격리 규칙 (중요)
+
+- 매장 사용자의 `shopId` 는 **오직 토큰에서만** 온다 → 컨트롤러에서 `@CurrentUser()` 로 받는다.
+- 요청 body 에 `shopId` 를 보내면 400 (ValidationPipe `forbidNonWhitelisted`).
+- 매장 데이터 저장소는 `TenantRepository` 를 상속하고 `*ForShop(shopId, ...)` 메서드만 사용한다.
+- 다른 매장 데이터 id 로 접근하면 403 이 아니라 **404** (존재 여부도 숨김).
+- 전역 `AuthGuard` 가 기본으로 로그인을 요구한다. 예외는 `@Public()`, 운영자 전용은 `@AdminOnly()`, 원장 전용은 `@Roles('OWNER')`.
+
+### 매장 가입 승인
+
+`.env` 의 `SHOP_AUTO_APPROVE` — 개발은 `true`(가입 즉시 사용), 운영은 `false`(운영자 승인 후 로그인).
+관리자 화면은 5단계에서 만들고, 그 전까지는 CLI 로 처리한다.
+
+```bash
+npm run cli -w @beauty-crm/api -- create-admin <아이디> <이름>       # 운영자 계정 (임시 비밀번호 출력)
+npm run cli -w @beauty-crm/api -- list-shops PENDING                # 승인 대기 매장
+npm run cli -w @beauty-crm/api -- approve <shopId> --founder        # 승인 + 창립 테스터(평생 무료) 표시
+npm run cli -w @beauty-crm/api -- suspend <shopId>                  # 이용 정지 (로그인 유지 토큰 즉시 해제)
+npm run cli -w @beauty-crm/api -- reset-owner-password <shopId>     # 원장 비밀번호 초기화
+
+# Docker 로 띄운 서버에서는
+docker compose exec api node dist/cli/admin-cli.js list-shops PENDING
+```
+
+### API 목록
+
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| POST | `/api/auth/signup` | 공개 | 매장 + 원장 계정 가입 |
+| GET | `/api/auth/invites/:code` | 공개 | 초대 코드 미리보기 (매장명) |
+| POST | `/api/auth/join` | 공개 | 초대 코드로 직원 가입 |
+| POST | `/api/auth/login` | 공개 | 로그인 → Access Token + 쿠키 |
+| POST | `/api/auth/refresh` | 쿠키 | Access Token 재발급 (회전) |
+| POST | `/api/auth/logout` | 쿠키 | 로그아웃 |
+| GET | `/api/auth/me` | 로그인 | 내 정보 |
+| POST | `/api/auth/password` | 로그인 | 비밀번호 변경 |
+| PATCH | `/api/me/settings` | 로그인 | 이름 · 글자 크기 |
+| GET / PATCH | `/api/shop` | 로그인 / 원장 | 내 매장 정보 |
+| GET | `/api/staff`, `/api/staff/:id` | 로그인 | 직원 목록 · 상세 |
+| PATCH / DELETE | `/api/staff/:id` | 원장 | 직원 수정·잠금 / 소프트 삭제 |
+| POST | `/api/staff/:id/reset-password` | 원장 | 디자이너 임시 비밀번호 발급 |
+| GET / POST / DELETE | `/api/invites` | 원장 | 초대 코드 (7일, 1회용) |
+| POST | `/api/admin/auth/login` | 공개 | 운영자 로그인 |
+| GET | `/api/admin/shops` | 운영자 | 매장 목록 |
+| POST | `/api/admin/shops/:id/approve` · `suspend` · `reset-owner-password` | 운영자 | 매장 관리 |
+
+### 화면
+
+| 경로 | 내용 |
+|---|---|
+| `/login` · `/signup` · `/join` · `/pending` | 로그인 · 매장 가입 · 초대 가입 · 승인 대기 |
+| `/home` | 홈 (큰 녹음 버튼, 오늘 매출·최근 기록 자리) |
+| `/customers` · `/records` · `/settlement` | 2~4단계에서 채움 |
+| `/settings` | 내 정보·글자 크기, 직원 초대·관리, 매장 정보, 비밀번호, 로그아웃 |
+| `/status` | 0단계 점검 화면 (웹·API·DB·저장소) |
+
+레이아웃: 휴대폰(~767px) 하단 탭 + 가운데 녹음 버튼 / 태블릿(768~1199px) 왼쪽 아이콘 메뉴 / PC(1200px~) 넓은 사이드바.
+
+### 테스트
+
+```bash
+npm run db:up && npm run db:migrate
+npm run test:e2e -w @beauty-crm/api
+```
+
+실제 MariaDB 에 붙어 20개 시나리오를 확인한다 (매장 격리, 권한, 토큰 회전·재사용 감지, 소프트 삭제 등).
+테스트 데이터는 실행마다 고유 아이디로 개발 DB 에 쌓인다.
+
 ## 회사 서버 배포
 
 ```bash
-cp .env.example .env               # 운영 값으로 수정 (NODE_ENV=production)
+cp .env.example .env               # 운영 값으로 수정 (아래 체크리스트)
 docker compose --profile app up -d --build
 ```
+
+운영 `.env` 체크리스트:
+- `NODE_ENV=production`
+- `JWT_ACCESS_SECRET` → `openssl rand -hex 32` 로 새로 생성
+- `SHOP_AUTO_APPROVE=false`
+- `CORS_ORIGIN`, `NEXT_PUBLIC_API_BASE_URL` → 실제 HTTPS 도메인
+- DB · 저장소 비밀번호 변경
 
 - API 컨테이너는 시작할 때 밀린 마이그레이션을 자동 적용한 뒤 실행된다.
 - HTTPS(브라우저 마이크 사용에 필수)는 앞단 Nginx/Caddy 리버스 프록시에서 처리한다.
