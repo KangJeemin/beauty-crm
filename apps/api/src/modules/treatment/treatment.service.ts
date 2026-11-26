@@ -1,12 +1,13 @@
-import { TreatmentDetail, TreatmentListItem, UserStatus } from '@beauty-crm/shared';
-import { Injectable } from '@nestjs/common';
+import { ErrorCode, PaymentSummary, TreatmentDetail, TreatmentListItem, UserStatus } from '@beauty-crm/shared';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { ShopAuth } from '../../common/auth/auth.types';
-import { Errors } from '../../common/errors/app.exception';
+import { AppException, Errors } from '../../common/errors/app.exception';
 import { TenantRepository } from '../../common/repositories/base.repository';
 import { Customer } from '../customer/entities/customer.entity';
 import { ServiceMenu } from '../menu/entities/menu.entity';
+import { Payment, PaymentDetail } from '../payment/payment.entities';
 import { ShopUser } from '../staff/entities/shop-user.entity';
 import { VoiceRecord } from '../voice/voice-record.entity';
 import { TreatmentSaveDto } from './dto/treatment.dto';
@@ -62,6 +63,16 @@ export class TreatmentService {
       const refs = await this.validateRefs(em, auth, dto, t.designerId);
       const oldCustomer = t.customerId;
 
+      // 결제가 끝난 시술은 금액·고객을 바꾸면 결제 기록과 어긋난다 → 결제 취소 후 수정
+      const paid = await em.getRepository(Payment).findOneBy({ shopId: auth.shopId, treatmentId: id, status: 'PAID', delState: 0 });
+      if (paid && (sum(dto) !== paid.listAmount || dto.customerId !== t.customerId)) {
+        throw new AppException(
+          ErrorCode.VALIDATION,
+          '결제가 끝난 시술은 금액이나 고객을 바꿀 수 없습니다. 정산 화면에서 결제를 취소한 뒤 수정해 주세요.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       await this.softDeleteItems(em, auth.shopId, [id]);
       Object.assign(t, {
         customerId: dto.customerId,
@@ -83,6 +94,9 @@ export class TreatmentService {
     await this.ds.transaction(async (em) => {
       const t = await em.getRepository(Treatment).findOneBy({ id, shopId: auth.shopId, delState: 0 });
       if (!t) throw Errors.notFound('시술 기록');
+      if (await em.getRepository(Payment).count({ where: { shopId: auth.shopId, treatmentId: id, status: 'PAID', delState: 0 } })) {
+        throw new AppException(ErrorCode.VALIDATION, '결제가 끝난 시술입니다. 결제를 먼저 취소해 주세요.', HttpStatus.BAD_REQUEST);
+      }
       await em.getRepository(Treatment).update(id, { delState: 1 });
       await this.softDeleteItems(em, auth.shopId, [id]);
       await this.recomputeCustomer(em, auth.shopId, t.customerId);
@@ -121,6 +135,7 @@ export class TreatmentService {
       summary: d.summary,
       totalAmount: d.totalAmount,
       itemNames: d.items.map((i) => i.menuName),
+      paid: !!d.payment,
     }));
   }
 
@@ -216,6 +231,18 @@ export class TreatmentService {
     const customers = await this.ds.getRepository(Customer).find({ where: { id: In([...new Set(rows.map((r) => r.customerId))]), shopId } });
     const designers = await this.ds.getRepository(ShopUser).find({ where: { id: In([...new Set(rows.map((r) => r.designerId))]), shopId } });
     const voices = await this.ds.getRepository(VoiceRecord).find({ where: { treatmentId: In(ids), shopId } });
+    const pays = await this.ds.getRepository(Payment).find({ where: { treatmentId: In(ids), shopId, status: 'PAID', delState: 0 } });
+    const payDetails = pays.length
+      ? await this.ds.getRepository(PaymentDetail).find({ where: { paymentId: In(pays.map((p) => p.id)), shopId, delState: 0 } })
+      : [];
+    const paymentOf = (tid: number): PaymentSummary | null => {
+      const p = pays.find((x) => x.treatmentId === tid);
+      if (!p) return null;
+      return {
+        id: p.id, finalAmount: p.finalAmount, discountAmount: p.discountAmount, paidAt: p.paidAt.toISOString(),
+        methods: payDetails.filter((d) => d.paymentId === p.id).map((d) => ({ method: d.method, amount: d.amount })),
+      };
+    };
 
     return rows.map((t) => ({
       id: t.id,
@@ -230,6 +257,7 @@ export class TreatmentService {
       totalAmount: t.totalAmount,
       copiedFromId: t.copiedFromId,
       transcript: voices.find((v) => v.treatmentId === t.id)?.transcript ?? null,
+      payment: paymentOf(t.id),
       createdAt: t.createdAt.toISOString(),
       items: items
         .filter((i) => i.treatmentId === t.id)

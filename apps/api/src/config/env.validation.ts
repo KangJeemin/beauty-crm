@@ -36,6 +36,9 @@ export const envValidationSchema = Joi.object({
   STORAGE_SECRET_KEY: Joi.string().required(),
   STORAGE_FORCE_PATH_STYLE: Joi.string().valid('true', 'false').default('true'),
 
+  // ── 정산 (4단계) ── 이 시각(0~12시) 전 결제는 전날 영업일로 집계
+  BUSINESS_DAY_CUTOFF_HOUR: Joi.number().integer().min(0).max(12).default(4),
+
   // ── 음성 · AI (3단계) ── MOCK 은 키 없이 흐름만 확인하는 개발용
   STT_PROVIDER: Joi.string().valid('CLOVA', 'MOCK').default('MOCK'),
   CLOVA_SPEECH_INVOKE_URL: Joi.when('STT_PROVIDER', {

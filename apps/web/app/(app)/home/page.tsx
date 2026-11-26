@@ -1,6 +1,6 @@
 'use client';
 
-import type { TreatmentListItem } from '@beauty-crm/shared';
+import type { DailySettlement, TreatmentListItem } from '@beauty-crm/shared';
 import { formatWon } from '@beauty-crm/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -21,11 +21,14 @@ export default function HomePage() {
   const { user } = useAuth();
   const [recent, setRecent] = useState<TreatmentListItem[] | null>(null);
   const [pending, setPending] = useState(0);
+  const [daily, setDaily] = useState<DailySettlement | null>(null);
+  const isOwner = user?.role === 'OWNER';
 
   useEffect(() => {
     api<TreatmentListItem[]>('/treatments/recent').then(setRecent).catch(() => setRecent([]));
     api<unknown[]>('/voice-records/pending').then((p) => setPending(p.length)).catch(() => undefined);
-  }, []);
+    if (isOwner) api<DailySettlement>('/settlements/daily').then(setDaily).catch(() => undefined);
+  }, [isOwner]);
 
   const today = recent?.filter((r) => new Date(r.treatedAt).toDateString() === new Date().toDateString()) ?? [];
 
@@ -55,10 +58,20 @@ export default function HomePage() {
       )}
 
       <div className="grid-2">
-        <Section title="오늘 시술">
-          <p className="big-num">{today.length}건</p>
-          <p className="muted">기록 합계 {formatWon(today.reduce((a, r) => a + r.totalAmount, 0))} · 결제 정산은 4단계에서 연결돼요.</p>
-        </Section>
+        {isOwner ? (
+          <Section title="오늘 들어온 돈" action={<Link href="/settlement" className="btn btn-ghost btn-sm">정산 →</Link>}>
+            <p className="big-num">{daily ? formatWon(daily.totals.received) : '—'}</p>
+            <p className="muted">
+              시술 {today.length}건
+              {daily && daily.unpaid.length > 0 ? ` · 결제 기록 없는 시술 ${daily.unpaid.length}건` : ''}
+            </p>
+          </Section>
+        ) : (
+          <Section title="오늘 시술">
+            <p className="big-num">{today.length}건</p>
+            <p className="muted">기록 합계 {formatWon(today.reduce((a, r) => a + r.totalAmount, 0))}</p>
+          </Section>
+        )}
         <Section title="최근 시술 기록">
           {recent && recent.length === 0 && <Empty title="아직 기록이 없어요" desc="녹음 버튼을 눌러 첫 기록을 남겨 보세요." />}
           <ul className="list">

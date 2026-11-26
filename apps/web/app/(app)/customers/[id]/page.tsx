@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCustomersReload } from '../../../../components/customers/context';
 import { TagChip } from '../../../../components/customers/TagChip';
+import { PassesCard } from '../../../../components/payment/PassesCard';
 import { TreatmentTimeline } from '../../../../components/records/TreatmentTimeline';
 import { Alert, Button } from '../../../../components/ui';
 import { api } from '../../../../lib/api';
@@ -15,7 +16,9 @@ import { fmtDate, relDay } from '../../../../lib/format';
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const saved = useSearchParams().get('saved');
+  const sp = useSearchParams();
+  const saved = sp.get('saved');
+  const paid = sp.get('paid');
   const { version, reload } = useCustomersReload();
   const [c, setC] = useState<CustomerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +116,9 @@ export default function CustomerDetailPage() {
       </div>
 
       {saved && <Alert kind="ok">시술 기록을 저장했어요.</Alert>}
-      <TreatmentTimeline customerId={c.id} highlightId={saved ? Number(saved) : undefined} />
+      {paid && <Alert kind="ok">시술 기록과 결제를 저장했어요.</Alert>}
+      <TreatmentTimeline customerId={c.id} highlightId={saved ? Number(saved) : paid ? Number(paid) : undefined} />
+      <PassesCard customerId={c.id} refreshKey={version} />
 
       <div className="card small muted">
         <p>등록일 {fmtDate(c.createdAt)}</p>

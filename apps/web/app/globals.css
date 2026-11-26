@@ -416,3 +416,75 @@ button.chip { cursor: pointer; }
 .tl-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.7rem; }
 .transcript-links { display: flex; flex-wrap: wrap; gap: 0 1.4rem; }
 .picked-main { display: grid; gap: 0.1rem; }
+
+/* ── 4단계: 결제 · 선불권 · 정산 ───────────────── */
+.pay-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; margin-bottom: 0.4rem; }
+.pay-head .muted { margin: 0; }
+.pay-items { margin: 0.1rem 0 0; font-weight: 700; }
+.pay-final { text-align: right; display: grid; }
+.pay-final b { font-size: 2rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.remain { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.method-btn {
+  min-height: 72px; border-radius: 14px; border: 2px solid var(--line); background: #fff; color: var(--ink);
+  font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; display: grid; place-content: center; gap: 0.1rem; padding: 0.4rem;
+}
+.method-btn:hover:not(:disabled) { border-color: var(--accent); }
+.method-btn.pass { grid-column: 1 / -1; background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); }
+.method-btn small { font-size: 0.85rem; font-weight: 600; }
+.method-btn:disabled { opacity: 0.4; }
+.pay-rows { list-style: none; padding: 0; margin: 0.8rem 0 0.4rem; display: grid; gap: 0.5rem; }
+.pay-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.4rem 0.4rem 1rem; border-radius: 12px; background: var(--bg); }
+.pay-row-label { flex: 1; font-weight: 700; }
+.pay-row input { width: 8.5rem; min-height: 52px; text-align: right; font-size: 1.15rem; font-weight: 700; border: 1.5px solid var(--line); border-radius: 10px; padding: 0 0.7rem; font-variant-numeric: tabular-nums; }
+.won { color: var(--muted); }
+
+.tl-paid { margin: 0.6rem 0 0; font-size: 0.9rem; color: var(--ok); font-weight: 600; }
+.tl-unpaid { display: block; margin-top: 0.6rem; padding: 0.55rem 0.8rem; border-radius: 10px; background: #fff3e0; color: #8a4b00; font-weight: 700; text-decoration: none; font-size: 0.95rem; }
+
+.pass-row { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.8rem 0; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.list li:first-child .pass-row { border-top: 0; }
+.pass-row.inactive { opacity: 0.6; }
+.pass-balance { font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pass-hero { text-align: center; }
+.pass-hero p { margin: 0; }
+.pass-hero .big-num { font-size: 2.4rem; }
+.tx-amt { display: grid; text-align: right; white-space: nowrap; }
+.tx-amt .pos { color: var(--ok); }
+.tx-amt .neg { color: var(--bad); }
+.form-actions.start { justify-content: flex-start; margin-top: 0; }
+
+.date-nav { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.date-pick { position: relative; flex: 1; min-height: 52px; display: grid; place-items: center; border-radius: 12px; background: var(--card); border: 1.5px solid var(--line); font-weight: 800; font-size: 1.1rem; }
+.date-pick input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.money-hero .hero-num { font-size: clamp(2.2rem, 9vw, 3rem); font-weight: 800; margin: 0 0 0.8rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.money-hero > .muted:first-child { margin: 0; }
+.method-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 0.8rem; }
+.method-sum div { background: var(--bg); border-radius: 12px; padding: 0.7rem; display: grid; gap: 0.1rem; }
+.method-sum span { font-size: 0.85rem; color: var(--muted); }
+.method-sum b { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.sub-sums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.3rem 1rem; margin: 0 0 0.6rem; }
+@media (min-width: 700px) { .sub-sums { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.sub-sums div { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px dashed var(--line); }
+.sub-sums dt { color: var(--muted); font-size: 0.9rem; }
+.sub-sums dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.warn-card { border-color: #f3c27a; background: #fffaf0; }
+.diff { display: inline-block; margin: -0.6rem 0 0.8rem; font-weight: 800; font-size: 0.95rem; }
+.diff.ok { color: var(--ok); }
+.diff.bad { color: var(--bad); }
+.pay-item.cancelled b, .pay-item.cancelled .pay-amt b { color: var(--muted); text-decoration: line-through; }
+.pay-amt { display: grid; justify-items: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pay-amt .link-btn { min-height: 32px; padding: 0; font-size: 0.85rem; }
+.bars { list-style: none; padding: 0; margin: 0 0 0.6rem; display: grid; gap: 0.2rem; }
+.bar-row { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr) 6.5rem; align-items: center; gap: 0.6rem; width: 100%; min-height: 34px; padding: 0; border: 0; background: none; font: inherit; color: var(--ink); cursor: pointer; text-align: left; }
+.bar-day { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-track { height: 14px; border-radius: 99px; background: var(--bg); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.bar-amt { text-align: right; font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* 좁은 화면 보정 */
+.pay-row-label { min-width: 0; word-break: keep-all; line-height: 1.3; }
+.save-bar .btn { white-space: nowrap; }
+@media (max-width: 480px) {
+  .pay-row input { width: 7.2rem; }
+  .sub-sums { grid-template-columns: 1fr; }
+}
