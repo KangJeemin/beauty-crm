@@ -1,10 +1,18 @@
 {
+  "id": "/",
   "name": "미용 고객 관리",
   "short_name": "고객관리",
-  "start_url": "/",
+  "description": "음성으로 기록하는 시술 이력 관리",
+  "start_url": "/home?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "lang": "ko",
-  "icons": []
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }
