@@ -80,11 +80,13 @@ interface Options {
 
 export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   const { method = 'GET', body, auth = true } = opts;
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   const run = () => {
     const headers: Record<string, string> = {};
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    // FormData(녹음 파일)는 브라우저가 boundary 포함 Content-Type 을 직접 넣는다
+    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return send(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    return send(path, { method, headers, body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body) });
   };
 
   let res = await run();
@@ -94,4 +96,16 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
     if (r) res = await run();
   }
   return parse<T>(res);
+}
+
+/** 로그인이 필요한 파일 받기 (녹음 다시 듣기) */
+export async function apiBlob(path: string): Promise<Blob> {
+  const run = () => send(path, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} });
+  let res = await run();
+  if (res.status === 401 && (await refreshSession())) res = await run();
+  if (!res.ok) {
+    const e = (await res.json().catch(() => null)) as ApiErrorBody | null;
+    throw new ApiError(res.status, e?.code ?? 'INTERNAL', e?.message ?? '파일을 불러오지 못했습니다.');
+  }
+  return res.blob();
 }

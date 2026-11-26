@@ -20,6 +20,8 @@ import { MenuModule } from './modules/menu/menu.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { TagModule } from './modules/tag/tag.module';
+import { TreatmentModule } from './modules/treatment/treatment.module';
+import { VoiceModule } from './modules/voice/voice.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { TagModule } from './modules/tag/tag.module';
     MenuModule,
     TagModule,
     CustomerModule,
+    TreatmentModule,
+    VoiceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

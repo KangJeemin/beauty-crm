@@ -36,7 +36,29 @@ export const envValidationSchema = Joi.object({
   STORAGE_SECRET_KEY: Joi.string().required(),
   STORAGE_FORCE_PATH_STYLE: Joi.string().valid('true', 'false').default('true'),
 
-  STT_PROVIDER: Joi.string().valid('CLOVA').default('CLOVA'),
-  LLM_PROVIDER: Joi.string().valid('HYPERCLOVA').default('HYPERCLOVA'),
+  // ── 음성 · AI (3단계) ── MOCK 은 키 없이 흐름만 확인하는 개발용
+  STT_PROVIDER: Joi.string().valid('CLOVA', 'MOCK').default('MOCK'),
+  CLOVA_SPEECH_INVOKE_URL: Joi.when('STT_PROVIDER', {
+    is: 'CLOVA',
+    then: Joi.string().uri().required().messages({ 'any.required': 'STT_PROVIDER=CLOVA 이면 CLOVA_SPEECH_INVOKE_URL 이 필요합니다.' }),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  CLOVA_SPEECH_SECRET_KEY: Joi.when('STT_PROVIDER', {
+    is: 'CLOVA',
+    then: Joi.string().required().messages({ 'any.required': 'STT_PROVIDER=CLOVA 이면 CLOVA_SPEECH_SECRET_KEY 가 필요합니다.' }),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  LLM_PROVIDER: Joi.string().valid('HYPERCLOVA', 'MOCK').default('MOCK'),
   LLM_MODEL: Joi.string().default('HCX-007'),
+  CLOVA_STUDIO_API_KEY: Joi.when('LLM_PROVIDER', {
+    is: 'HYPERCLOVA',
+    then: Joi.string().required().messages({ 'any.required': 'LLM_PROVIDER=HYPERCLOVA 이면 CLOVA_STUDIO_API_KEY 가 필요합니다.' }),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  CLOVA_STUDIO_BASE_URL: Joi.string().uri().default('https://clovastudio.stream.ntruss.com'),
+  FFMPEG_PATH: Joi.string().allow('').optional(),
+  VOICE_FILE_RETENTION_DAYS: Joi.number().integer().min(1).max(365).default(30),
+  STT_COST_KRW_PER_MIN: Joi.number().min(0).default(0),
+  LLM_COST_KRW_PER_1K_INPUT: Joi.number().min(0).default(0),
+  LLM_COST_KRW_PER_1K_OUTPUT: Joi.number().min(0).default(0),
 }).unknown(true);
