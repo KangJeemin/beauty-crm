@@ -1,6 +1,7 @@
 import {
   ErrorCode, PassStatus, PaymentItem, PrepaidPassDetail, PrepaidPassItem, UserRole,
 } from '@beauty-crm/shared';
+import { auditBefore } from '../../common/audit/audit-context';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager, In } from 'typeorm';
@@ -134,6 +135,7 @@ export class PaymentService {
         .getOne();
       if (!p) throw Errors.notFound('결제');
       if (p.status !== 'PAID') throw bad('이미 취소된 결제입니다.');
+      auditBefore({ status: p.status, paymentType: p.paymentType, finalAmount: p.finalAmount, customerId: p.customerId, treatmentId: p.treatmentId });
       if (auth.role !== UserRole.OWNER && p.createdBy !== auth.userId) throw Errors.forbidden('결제를 입력한 사람이나 원장님만 취소할 수 있습니다.');
       if (p.paymentType === 'PASS_REFUND') throw bad('환불 기록은 취소할 수 없습니다.');
 
@@ -234,6 +236,7 @@ export class PaymentService {
     await this.ds.transaction(async (em) => {
       const pass = await this.lockPass(em, auth.shopId, id);
       if (pass.status === 'REFUNDED') throw bad('환불된 선불권은 조정할 수 없습니다.');
+      auditBefore({ balance: pass.balance, status: pass.status });
       if (pass.balance + dto.amount < 0) throw bad(`잔액(${won(pass.balance)})보다 많이 뺄 수 없습니다.`);
       await this.moveBalance(em, auth, pass, dto.amount, 'ADJUST', { memo: dto.memo });
     });

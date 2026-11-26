@@ -48,7 +48,8 @@ export class VoiceProcessor implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   async onApplicationBootstrap() {
-    if (process.env.NODE_ENV === 'test') return;
+    // 테스트·운영자 CLI(잠깐 떴다 꺼짐)에서는 백그라운드 작업을 시작하지 않는다
+    if (process.env.NODE_ENV === 'test' || process.env.BC_CLI === '1') return;
     // 재시작 전에 끝나지 않은 작업 (최근 하루)
     const stuck = await this.voices.find({
       select: ['id'],

@@ -347,6 +347,10 @@ export default function SettingsPage() {
             <b>고객 태그</b>
             <span className="muted">두피 민감, 탈색 이력 같은 표시</span>
           </Link>
+          <Link href="/feedback?from=/settings" className="link-card">
+            <b>의견 보내기</b>
+            <span className="muted">불편한 점·바라는 기능을 개발자에게</span>
+          </Link>
         </nav>
         <MySettings />
         <StaffSettings isOwner={isOwner} myId={user.id} />

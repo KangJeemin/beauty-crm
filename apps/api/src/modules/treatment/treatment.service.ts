@@ -1,4 +1,5 @@
 import { ErrorCode, PaymentSummary, TreatmentDetail, TreatmentListItem, UserStatus } from '@beauty-crm/shared';
+import { auditBefore } from '../../common/audit/audit-context';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
@@ -60,6 +61,7 @@ export class TreatmentService {
     await this.ds.transaction(async (em) => {
       const t = await em.getRepository(Treatment).findOneBy({ id, shopId: auth.shopId, delState: 0 });
       if (!t) throw Errors.notFound('시술 기록');
+      auditBefore({ customerId: t.customerId, designerId: t.designerId, treatedAt: t.treatedAt, summary: t.summary, note: t.note, totalAmount: t.totalAmount });
       const refs = await this.validateRefs(em, auth, dto, t.designerId);
       const oldCustomer = t.customerId;
 
@@ -94,6 +96,7 @@ export class TreatmentService {
     await this.ds.transaction(async (em) => {
       const t = await em.getRepository(Treatment).findOneBy({ id, shopId: auth.shopId, delState: 0 });
       if (!t) throw Errors.notFound('시술 기록');
+      auditBefore({ customerId: t.customerId, designerId: t.designerId, treatedAt: t.treatedAt, summary: t.summary, note: t.note, totalAmount: t.totalAmount });
       if (await em.getRepository(Payment).count({ where: { shopId: auth.shopId, treatmentId: id, status: 'PAID', delState: 0 } })) {
         throw new AppException(ErrorCode.VALIDATION, '결제가 끝난 시술입니다. 결제를 먼저 취소해 주세요.', HttpStatus.BAD_REQUEST);
       }

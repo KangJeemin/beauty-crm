@@ -1,4 +1,5 @@
 import { AuthUser, InvitePreview, LoginResult, ShopStatus, SignupResult, UserRole, UserStatus } from '@beauty-crm/shared';
+import { auditMeta } from '../../common/audit/audit-context';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager } from 'typeorm';
@@ -75,6 +76,7 @@ export class AuthService {
       return { shop, user };
     });
     this.logger.log(`매장 가입: #${shop.id} ${shop.name} (${status})`);
+    auditMeta({ shopId: shop.id, targetId: shop.id, actor: { type: 'SHOP', id: user.id }, after: { name: shop.name, ownerName: shop.ownerName, loginId: user.loginId, status } });
 
     if (status !== ShopStatus.ACTIVE) return { result: { shopStatus: status } };
     const issued = await this.issueLogin(user, shop, meta);

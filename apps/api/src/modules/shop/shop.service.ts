@@ -1,4 +1,5 @@
 import { ShopInfo } from '@beauty-crm/shared';
+import { auditBefore } from '../../common/audit/audit-context';
 import { Injectable } from '@nestjs/common';
 import { ShopAuth } from '../../common/auth/auth.types';
 import { Errors } from '../../common/errors/app.exception';
@@ -16,6 +17,7 @@ export class ShopService {
 
   async updateMine(auth: ShopAuth, dto: UpdateShopDto): Promise<ShopInfo> {
     const shop = await this.mustGet(auth.shopId);
+    auditBefore(toInfo(shop));
     Object.assign(shop, dto);
     return toInfo(await this.shops.save(shop));
   }
