@@ -582,3 +582,36 @@ h1 .st, h1 .badge { font-size: 0.8rem; }
 .kv td.from { background: #fdf0ef; text-decoration: line-through; color: var(--muted); }
 .pager { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; }
 .fb-admin .row-actions { margin-top: 0.2rem; }
+
+/* ── PWA: 홈 화면 아이콘 안내 ─────────────────── */
+button.link-card { font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.link-card.static b::after { content: none; }
+.install-banner {
+  display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; padding: 0.7rem 0.6rem 0.7rem 0.8rem;
+  border-radius: var(--radius); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.install-banner img { border-radius: 11px; flex: none; }
+.install-text { flex: 1; display: grid; min-width: 0; line-height: 1.35; }
+.install-text b { font-size: 1rem; }
+.install-text span { font-size: 0.88rem; color: var(--muted); }
+.install-banner .btn { flex: none; }
+.install-x { flex: none; width: 40px; height: 40px; border: 0; background: none; color: var(--muted); font-size: 1rem; cursor: pointer; border-radius: 10px; }
+
+.sheet-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(30, 20, 28, 0.45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; background: var(--card);
+  border-radius: 22px 22px 0 0; padding: 1.2rem 1.2rem calc(1.4rem + env(safe-area-inset-bottom));
+  display: grid; gap: 0.9rem; animation: sheet-up 0.18s ease-out;
+}
+@media (min-width: 700px) { .sheet-backdrop { align-items: center; } .sheet { border-radius: 22px; } }
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet p { margin: 0; line-height: 1.6; }
+.sheet-head { display: flex; align-items: center; gap: 0.7rem; }
+.sheet-head img { border-radius: 12px; }
+.sheet-head h2 { flex: 1; margin: 0; font-size: 1.25rem; }
+.sheet-close { width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--bg); font-size: 1.05rem; cursor: pointer; }
+.install-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.install-steps li { display: flex; gap: 0.7rem; align-items: flex-start; padding: 0.8rem; border-radius: 14px; background: var(--bg); font-size: 1.05rem; line-height: 1.5; }
+.step-no { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 0.95rem; }
+.install-sub { font-weight: 800; margin-top: 0.2rem !important; }
+.glyph { vertical-align: -5px; color: #0a7aff; }

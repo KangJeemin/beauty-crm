@@ -9,6 +9,13 @@ const nextConfig = {
   outputFileTracingRoot: resolve(__dirname, '../..'),
   transpilePackages: ['@beauty-crm/shared'],
   reactStrictMode: true,
+  async headers() {
+    return [
+      // 서비스 워커는 항상 새로 받아야 업데이트가 바로 반영된다
+      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }] },
+      { source: '/manifest.webmanifest', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
+    ];
+  },
 };
 
 export default nextConfig;

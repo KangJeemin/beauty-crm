@@ -1,5 +1,6 @@
 'use client';
 
+import { InstallBanner } from '../../../components/InstallGuide';
 import type { DailySettlement, TreatmentListItem } from '@beauty-crm/shared';
 import { formatWon } from '@beauty-crm/shared';
 import Link from 'next/link';
@@ -40,6 +41,8 @@ export default function HomePage() {
           {user?.name}님, {greeting()}
         </h1>
       </header>
+
+      <InstallBanner />
 
       <Link href="/records" className="record-hero">
         <span className="record-circle">
