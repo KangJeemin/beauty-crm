@@ -1,4 +1,5 @@
 import { CustomerDetail, CustomerListItem, ErrorCode, Paged } from '@beauty-crm/shared';
+import { auditBefore } from '../../common/audit/audit-context';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, Not, Repository } from 'typeorm';
@@ -126,6 +127,7 @@ export class CustomerService {
 
   async update(auth: ShopAuth, id: number, dto: CustomerUpdateDto): Promise<CustomerDetail> {
     const c = await this.mustGet(auth.shopId, id);
+    auditBefore({ name: c.name, phoneLast4: c.phoneLast4, gender: c.gender, birthYear: c.birthYear, memo: c.memo, consentAt: c.consentAt });
     if (dto.phone !== undefined) {
       const phone = this.preparePhone(dto.phone);
       if (phone.phoneHash && phone.phoneHash !== c.phoneHash) await this.assertPhoneFree(auth.shopId, phone.phoneHash, c.id);
@@ -153,6 +155,8 @@ export class CustomerService {
 
   /** 소프트 삭제 — 시술·결제 기록은 그대로 남는다 */
   async remove(auth: ShopAuth, id: number): Promise<void> {
+    const c = await this.mustGet(auth.shopId, id);
+    auditBefore({ name: c.name, phoneLast4: c.phoneLast4, gender: c.gender, birthYear: c.birthYear, memo: c.memo, consentAt: c.consentAt });
     if (!(await this.customers.softDeleteForShop(auth.shopId, id))) throw Errors.notFound('고객');
   }
 

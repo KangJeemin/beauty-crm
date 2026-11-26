@@ -1,5 +1,5 @@
 /**
- * 운영자 CLI (관리자 화면은 5단계에서 만든다)
+ * 운영자 CLI — 첫 운영자 계정 만들기 · 비상시용 (평소에는 운영자 화면 /admin 사용)
  *
  *   npm run cli -w @beauty-crm/api -- create-admin <loginId> <이름>     → 임시 비밀번호 출력
  *   npm run cli -w @beauty-crm/api -- list-shops [PENDING|ACTIVE|SUSPENDED]
@@ -8,6 +8,8 @@
  *   npm run cli -w @beauty-crm/api -- reset-owner-password <shopId>
  */
 import 'reflect-metadata';
+
+process.env.BC_CLI = '1';
 import { ShopStatus } from '@beauty-crm/shared';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';

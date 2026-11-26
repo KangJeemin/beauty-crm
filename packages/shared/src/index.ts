@@ -605,3 +605,183 @@ export interface ClosingInput {
   actualCard?: number | null;
   memo?: string | null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// 5단계: 운영자 화면 · 피드백 · 변경 이력
+// ─────────────────────────────────────────────────────────────
+
+export const FeedbackCategory = { BUG: 'BUG', REQUEST: 'REQUEST', QUESTION: 'QUESTION', ETC: 'ETC' } as const;
+export type FeedbackCategory = (typeof FeedbackCategory)[keyof typeof FeedbackCategory];
+export const FEEDBACK_CATEGORY_LABEL: Record<FeedbackCategory, string> = {
+  BUG: '불편·오류',
+  REQUEST: '바라는 기능',
+  QUESTION: '궁금한 점',
+  ETC: '기타',
+};
+
+export const FeedbackStatus = { OPEN: 'OPEN', IN_PROGRESS: 'IN_PROGRESS', DONE: 'DONE' } as const;
+export type FeedbackStatus = (typeof FeedbackStatus)[keyof typeof FeedbackStatus];
+export const FEEDBACK_STATUS_LABEL: Record<FeedbackStatus, string> = {
+  OPEN: '접수',
+  IN_PROGRESS: '확인 중',
+  DONE: '답변 완료',
+};
+
+export interface FeedbackInput {
+  category: FeedbackCategory;
+  content: string;
+  pageUrl?: string | null;
+}
+
+export interface FeedbackItem {
+  id: number;
+  shopId: number;
+  shopName?: string;
+  userName: string;
+  category: FeedbackCategory;
+  content: string;
+  pageUrl: string | null;
+  status: FeedbackStatus;
+  reply: string | null;
+  repliedAt: string | null;
+  createdAt: string;
+}
+
+export interface FeedbackReplyInput {
+  status?: FeedbackStatus;
+  reply?: string | null;
+}
+
+export interface AdminLoginResult {
+  accessToken: string;
+  expiresIn: number;
+  name: string;
+}
+
+export interface AdminShopRow {
+  id: number;
+  name: string;
+  ownerName: string;
+  phone: string | null;
+  status: ShopStatus;
+  planType: string;
+  isFounder: number;
+  ownerLoginId: string | null;
+  userCount: number;
+  customerCount: number;
+  treatmentCount: number;
+  treatments7d: number;
+  lastActivityAt: string | null;
+  aiCostMonth: number;
+  createdAt: string;
+  approvedAt: string | null;
+}
+
+export interface AiUsageTotals {
+  calls: number;
+  failures: number;
+  sttSeconds: number;
+  llmInput: number;
+  llmOutput: number;
+  costKrw: number;
+}
+
+export interface AdminDashboard {
+  shopCounts: Record<ShopStatus, number> & { total: number };
+  pendingShops: AdminShopRow[];
+  openFeedback: number;
+  activeShops7d: number;
+  treatments7d: number;
+  voice7d: number;
+  voiceFailed7d: number;
+  aiMonth: AiUsageTotals & { month: string };
+}
+
+export interface AdminShopUser {
+  id: number;
+  loginId: string;
+  name: string;
+  role: UserRole;
+  status: string;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminShopDetail {
+  shop: AdminShopRow & {
+    bizNo: string | null;
+    address: string | null;
+    storageQuotaMb: number;
+    storageUsedBytes: number;
+    termsAgreedAt: string | null;
+    privacyAgreedAt: string | null;
+  };
+  users: AdminShopUser[];
+  usage: (AiUsageTotals & { month: string })[];
+  feedback: FeedbackItem[];
+  audit: AuditItem[];
+}
+
+export interface AdminShopUpdateInput {
+  isFounder?: boolean;
+  storageQuotaMb?: number;
+}
+
+export interface AiUsageReport {
+  month: string;
+  totals: AiUsageTotals;
+  shops: (AiUsageTotals & { shopId: number; shopName: string; voiceCount: number })[];
+  days: { date: string; calls: number; failures: number; costKrw: number }[];
+}
+
+export interface AuditItem {
+  id: number;
+  shopId: number | null;
+  shopName: string | null;
+  actorType: 'SHOP' | 'ADMIN' | 'SYSTEM';
+  actorId: number | null;
+  actorName: string | null;
+  action: string;
+  targetTable: string;
+  targetId: number | null;
+  beforeData: unknown;
+  afterData: unknown;
+  ip: string | null;
+  createdAt: string;
+}
+
+export const AUDIT_ACTION_LABEL: Record<string, string> = {
+  CREATE: '등록',
+  UPDATE: '수정',
+  DELETE: '삭제',
+  LOGIN: '로그인',
+  SIGNUP: '매장 가입',
+  JOIN: '초대 가입',
+  CHANGE_PASSWORD: '비밀번호 변경',
+  RESET_PASSWORD: '비밀번호 초기화',
+  APPROVE: '승인',
+  SUSPEND: '이용 정지',
+  CANCEL: '취소',
+  ADJUST: '잔액 조정',
+  REFUND: '환불',
+  CLOSE: '마감',
+  REPLY: '답변',
+  RETRY: '다시 시도',
+};
+
+export const AUDIT_TABLE_LABEL: Record<string, string> = {
+  shop: '매장',
+  shop_user: '직원',
+  shop_invite: '초대 코드',
+  admin_user: '운영자',
+  customer: '고객',
+  treatment: '시술 기록',
+  payment: '결제',
+  prepaid_pass: '선불권',
+  daily_closing: '일 마감',
+  voice_record: '녹음',
+  service_menu: '시술 메뉴',
+  service_category: '메뉴 분류',
+  tag: '태그',
+  feedback: '의견',
+};

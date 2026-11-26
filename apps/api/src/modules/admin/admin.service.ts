@@ -2,6 +2,7 @@ import { PlanType, ShopStatus, UserRole } from '@beauty-crm/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { auditMeta } from '../../common/audit/audit-context';
 import { Errors } from '../../common/errors/app.exception';
 import { BaseRepository } from '../../common/repositories/base.repository';
 import { DUMMY_HASH, hashPassword, newTempPassword, verifyPassword } from '../../common/utils/crypto.util';
@@ -52,6 +53,7 @@ export class AdminService {
     const ok = await verifyPassword(password, admin?.passwordHash ?? DUMMY_HASH);
     if (!admin || !ok) throw Errors.invalidCredentials();
     await this.admins.save({ id: admin.id, lastLoginAt: new Date() });
+    auditMeta({ actor: { type: 'ADMIN', id: admin.id } });
     return { accessToken: this.tokens.signAdminAccess(admin.id), expiresIn: this.tokens.adminTtlSec, name: admin.name };
   }
 

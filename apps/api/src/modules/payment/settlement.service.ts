@@ -1,6 +1,7 @@
 import {
   ClosingSnapshot, DailySettlement, DesignerTotal, ErrorCode, MoneyTotals, MonthlySettlement, UnpaidTreatment,
 } from '@beauty-crm/shared';
+import { auditBefore, auditMeta } from '../../common/audit/audit-context';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { ShopAuth } from '../../common/auth/auth.types';
@@ -121,14 +122,19 @@ export class SettlementService {
     }
     const current = await this.daily(auth, date);
     const t = current.totals;
-    await this.ds.transaction(async (em) => {
+    if (current.closing) auditBefore(current.closing);
+    const ins = await this.ds.transaction(async (em) => {
       await em.getRepository(DailyClosing).update({ shopId: auth.shopId, businessDate: date, delState: 0 }, { delState: 1 });
-      await em.getRepository(DailyClosing).insert({
+      return em.getRepository(DailyClosing).insert({
         shopId: auth.shopId, closedBy: auth.userId, businessDate: date,
         cashAmount: t.cash, cardAmount: t.card, transferAmount: t.transfer, prepaidAmount: t.prepaidUsed, etcAmount: t.etc,
         totalAmount: t.received, paymentCount: t.paymentCount,
         actualCash: dto.actualCash ?? null, actualCard: dto.actualCard ?? null, memo: dto.memo ?? null, closedAt: new Date(),
       });
+    });
+    auditMeta({
+      targetId: Number(ins.identifiers[0]?.id) || null,
+      after: { businessDate: date, received: t.received, cash: t.cash, card: t.card, transfer: t.transfer, actualCash: dto.actualCash ?? null, actualCard: dto.actualCard ?? null, memo: dto.memo ?? null },
     });
     return this.daily(auth, date);
   }

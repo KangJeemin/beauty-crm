@@ -1,4 +1,5 @@
 import { StaffItem, UserRole, UserStatus } from '@beauty-crm/shared';
+import { auditBefore } from '../../common/audit/audit-context';
 import { Injectable } from '@nestjs/common';
 import { ShopAuth } from '../../common/auth/auth.types';
 import { Errors } from '../../common/errors/app.exception';
@@ -27,6 +28,7 @@ export class StaffService {
   async update(auth: ShopAuth, id: number, dto: UpdateStaffDto): Promise<StaffItem> {
     const target = await this.mustGet(auth.shopId, id);
     if (dto.status && target.id === auth.userId) throw Errors.forbidden('본인 계정은 잠글 수 없습니다.');
+    auditBefore({ name: target.name, role: target.role, status: target.status });
     Object.assign(target, dto);
     await this.users.save(target);
     if (dto.status === UserStatus.LOCKED) await this.tokens.revokeAll('SHOP', target.id);
@@ -38,6 +40,7 @@ export class StaffService {
     if (target.id === auth.userId || target.role === UserRole.OWNER) {
       throw Errors.forbidden('원장 계정은 삭제할 수 없습니다.');
     }
+    auditBefore({ loginId: target.loginId, name: target.name, role: target.role, status: target.status });
     await this.users.softDeleteForShop(auth.shopId, id);
     await this.tokens.revokeAll('SHOP', id);
   }
