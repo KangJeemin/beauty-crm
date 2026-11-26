@@ -1,7 +1,7 @@
 'use client';
 
 import type { TreatmentDetail } from '@beauty-crm/shared';
-import { formatWon, recipeLine } from '@beauty-crm/shared';
+import { PAYMENT_METHOD_LABEL, formatWon, recipeLine } from '@beauty-crm/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
@@ -60,6 +60,16 @@ export function TreatmentTimeline({ customerId, highlightId }: { customerId: num
               ))}
             </ul>
             {t.note && <p className="tl-note">{t.note}</p>}
+            {t.payment ? (
+              <p className="tl-paid">
+                결제 {formatWon(t.payment.finalAmount)} · {t.payment.methods.map((m) => PAYMENT_METHOD_LABEL[m.method]).join('·') || '0원'}
+                {t.payment.discountAmount > 0 && ` (할인 ${formatWon(t.payment.discountAmount)})`}
+              </p>
+            ) : (
+              <Link href={`/payments/new?treatmentId=${t.id}`} className="tl-unpaid">
+                아직 결제 기록이 없어요 · 결제하기 →
+              </Link>
+            )}
             <div className="tl-actions">
               {idx === 0 && (
                 <Link href={`/records/new?copyFrom=${t.id}`} className="btn btn-ghost btn-sm">

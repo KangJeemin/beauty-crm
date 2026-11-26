@@ -360,6 +360,8 @@ export interface TreatmentItem {
 
 export interface TreatmentDetail {
   id: number;
+  /** 결제 완료면 요약, 아직이면 null (4단계) */
+  payment?: PaymentSummary | null;
   customerId: number;
   customerName: string;
   designerId: number;
@@ -384,6 +386,7 @@ export interface TreatmentListItem {
   summary: string | null;
   totalAmount: number;
   itemNames: string[];
+  paid?: boolean;
 }
 
 /** 레시피 한 줄 요약 (예: "뿌리 · 7N · 6% · 1:1 · 30분") */
@@ -402,4 +405,203 @@ export function recipeLine(r: RecipeInput): string {
   ]
     .filter((v) => v !== null && v !== undefined && v !== '')
     .join(' · ');
+}
+
+// ── 4단계: 결제 · 선불권 · 정산 ─────────────────────────
+
+export type PaymentType = 'SERVICE' | 'PRODUCT' | 'PASS_SALE' | 'PASS_REFUND';
+export type PaymentStatus = 'PAID' | 'CANCELLED';
+export type PassStatus = 'ACTIVE' | 'EXHAUSTED' | 'REFUNDED' | 'EXPIRED';
+export type PassTxType = 'CHARGE' | 'USE' | 'CANCEL_USE' | 'ADJUST' | 'REFUND';
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  CARD: '카드',
+  CASH: '현금',
+  TRANSFER: '계좌이체',
+  PREPAID: '선불권',
+  ETC: '기타',
+};
+
+export interface PaymentDetailInput {
+  method: PaymentMethod;
+  amount: number;
+  /** method=PREPAID 일 때 차감할 선불권 */
+  prepaidPassId?: number | null;
+}
+
+export interface PaymentCreateInput {
+  /** 시술 결제면 연결 (고객·금액은 시술에서 가져옴) */
+  treatmentId?: number | null;
+  /** 제품 판매 등 시술 없는 결제 */
+  customerId?: number | null;
+  paymentType?: 'SERVICE' | 'PRODUCT';
+  listAmount: number;
+  discountAmount?: number;
+  discountReason?: string | null;
+  details: PaymentDetailInput[];
+  paidAt?: string;
+  memo?: string | null;
+}
+
+export interface PaymentDetailItem {
+  id: number;
+  method: PaymentMethod;
+  amount: number;
+  prepaidPassId: number | null;
+  passName: string | null;
+}
+
+export interface PaymentItem {
+  id: number;
+  paymentType: PaymentType;
+  status: PaymentStatus;
+  customerId: number | null;
+  customerName: string | null;
+  treatmentId: number | null;
+  prepaidPassId: number | null;
+  listAmount: number;
+  discountAmount: number;
+  discountReason: string | null;
+  finalAmount: number;
+  paidAt: string;
+  businessDate: string;
+  cancelledAt: string | null;
+  memo: string | null;
+  createdByName: string;
+  /** 시술 결제면 담당 디자이너, 아니면 결제 받은 사람 */
+  designerName: string | null;
+  summary: string | null;
+  details: PaymentDetailItem[];
+}
+
+/** 시술 기록에 붙는 결제 요약 */
+export interface PaymentSummary {
+  id: number;
+  finalAmount: number;
+  discountAmount: number;
+  methods: { method: PaymentMethod; amount: number }[];
+  paidAt: string;
+}
+
+export interface PrepaidPassInput {
+  customerId: number;
+  passName: string;
+  chargeAmount: number;
+  bonusAmount?: number;
+  expireAt?: string | null;
+  memo?: string | null;
+  /** 고객이 선불권 값을 낸 방법 (선불권으로 선불권 결제 불가) */
+  details: PaymentDetailInput[];
+  paidAt?: string;
+}
+
+export interface PrepaidPassItem {
+  id: number;
+  customerId: number;
+  passName: string;
+  chargeAmount: number;
+  bonusAmount: number;
+  balance: number;
+  purchasedAt: string;
+  expireAt: string | null;
+  status: PassStatus;
+  memo: string | null;
+}
+
+export interface PrepaidTxItem {
+  id: number;
+  txType: PassTxType;
+  amount: number;
+  balanceAfter: number;
+  paymentId: number | null;
+  memo: string | null;
+  createdByName: string;
+  createdAt: string;
+}
+
+export interface PrepaidPassDetail extends PrepaidPassItem {
+  customerName: string;
+  transactions: PrepaidTxItem[];
+}
+
+/** 하루·한 달 합계 공통 */
+export interface MoneyTotals {
+  /** 실제 들어온 돈 = 현금 + 카드 + 이체 + 기타 (선불권 판매 포함, 환불 차감) */
+  received: number;
+  cash: number;
+  card: number;
+  transfer: number;
+  etc: number;
+  /** 선불권으로 차감한 금액 (들어온 돈 아님) */
+  prepaidUsed: number;
+  /** 시술·제품 매출 (선불권 차감분 포함, 할인 후) */
+  sales: number;
+  /** 선불권 판매액 */
+  passSales: number;
+  /** 선불권 환불액 */
+  passRefunds: number;
+  discount: number;
+  paymentCount: number;
+}
+
+export interface DesignerTotal {
+  designerId: number | null;
+  designerName: string;
+  sales: number;
+  count: number;
+}
+
+/** 마감 시점에 저장해 둔 숫자 */
+export interface ClosingSnapshot {
+  received: number;
+  cash: number;
+  card: number;
+  transfer: number;
+  etc: number;
+  prepaidUsed: number;
+  paymentCount: number;
+}
+
+export interface DailyClosingInfo {
+  closedAt: string;
+  closedByName: string;
+  snapshot: ClosingSnapshot;
+  actualCash: number | null;
+  actualCard: number | null;
+  memo: string | null;
+}
+
+export interface UnpaidTreatment {
+  id: number;
+  customerId: number;
+  customerName: string;
+  designerName: string;
+  treatedAt: string;
+  totalAmount: number;
+  summary: string | null;
+}
+
+export interface DailySettlement {
+  date: string;
+  totals: MoneyTotals;
+  designers: DesignerTotal[];
+  payments: PaymentItem[];
+  unpaid: UnpaidTreatment[];
+  closing: DailyClosingInfo | null;
+  /** 마감 이후 결제가 바뀌었는지 */
+  changedSinceClosing: boolean;
+}
+
+export interface MonthlySettlement {
+  month: string;
+  totals: MoneyTotals;
+  days: { date: string; received: number; sales: number; count: number; closed: boolean }[];
+  designers: DesignerTotal[];
+  menus: { menuName: string; count: number; amount: number }[];
+}
+
+export interface ClosingInput {
+  actualCash?: number | null;
+  actualCard?: number | null;
+  memo?: string | null;
 }

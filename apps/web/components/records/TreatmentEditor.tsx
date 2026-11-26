@@ -147,7 +147,8 @@ export function TreatmentEditor({
       const t = treatmentId
         ? await api<TreatmentDetail>(`/treatments/${treatmentId}`, { method: 'PUT', body })
         : await api<TreatmentDetail>('/treatments', { method: 'POST', body });
-      router.replace(`/customers/${t.customerId}?saved=${t.id}`);
+      // 새 기록은 바로 결제 입력으로, 수정은 고객 화면으로
+      router.replace(treatmentId ? `/customers/${t.customerId}?saved=${t.id}` : `/payments/new?treatmentId=${t.id}`);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

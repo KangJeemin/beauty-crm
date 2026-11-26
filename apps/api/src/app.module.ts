@@ -17,6 +17,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { InviteModule } from './modules/invite/invite.module';
 import { MenuModule } from './modules/menu/menu.module';
+import { PaymentModule } from './modules/payment/payment.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { TagModule } from './modules/tag/tag.module';
@@ -55,6 +56,7 @@ import { VoiceModule } from './modules/voice/voice.module';
     CustomerModule,
     TreatmentModule,
     VoiceModule,
+    PaymentModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
